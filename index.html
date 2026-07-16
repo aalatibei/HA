@@ -1,1 +1,797 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-search.css">
+        <link rel="stylesheet" href="css/filter.css">
+<link rel="stylesheet" href="css/nouislider.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title></title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/leaflet-search.js"></script>
+        <script src="js/tailDT.js"></script>
+<script src="js/nouislider.min.js"></script>
+<script src="js/wNumb.js"></script>
+        <script src="data/CategoryCount_1.js"></script>
+        <script src="data/14072026gpkg_2.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[26.87613952895452,40.838524977992535],[27.775302881462412,42.188380911563264]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    var img = popup._contentNode.querySelector('td img');
+                    if (img) {
+                        // If already loaded (cache), update immediately
+                        if (img.complete && img.naturalHeight > 0) {
+                            popup.update();
+                        } else {
+                            img.addEventListener('load', function() {
+                                popup.update();
+                            });
+                            img.addEventListener('error', function() {
+                                popup.update();
+                            });
+                        }
+                    }
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_GoogleSatelliteHybrid_0');
+        map.getPane('pane_GoogleSatelliteHybrid_0').style.zIndex = 400;
+        var layer_GoogleSatelliteHybrid_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatelliteHybrid_0',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_GoogleSatelliteHybrid_0;
+        map.addLayer(layer_GoogleSatelliteHybrid_0);
+        function pop_CategoryCount_1(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td class="visible-with-data" id="name" colspan="2"><strong>name</strong><br />' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="folders" colspan="2"><strong>folders</strong><br />' + (feature.properties['folders'] !== null ? autolinker.link(String(feature.properties['folders']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="count" colspan="2"><strong>count</strong><br />' + (feature.properties['count'] !== null ? autolinker.link(String(feature.properties['count']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="category_count_n_Dummy" colspan="2"><strong>category_count_n_Dummy</strong><br />' + (feature.properties['category_count_n_Dummy'] !== null ? autolinker.link(String(feature.properties['category_count_n_Dummy']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="category_count_n_NOT REGISTERED" colspan="2"><strong>category_count_n_NOT REGISTERED</strong><br />' + (feature.properties['category_count_n_NOT REGISTERED'] !== null ? autolinker.link(String(feature.properties['category_count_n_NOT REGISTERED']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td class="visible-with-data" id="category_count_n_UPDATED" colspan="2"><strong>category_count_n_UPDATED</strong><br />' + (feature.properties['category_count_n_UPDATED'] !== null ? autolinker.link(String(feature.properties['category_count_n_UPDATED']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
 
+        function style_CategoryCount_1_0() {
+            return {
+                pane: 'pane_CategoryCount_1',
+                opacity: 1,
+                color: 'rgba(53,121,177,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_CategoryCount_1');
+        map.getPane('pane_CategoryCount_1').style.zIndex = 401;
+        map.getPane('pane_CategoryCount_1').style['mix-blend-mode'] = 'normal';
+        var layer_CategoryCount_1 = new L.geoJson(json_CategoryCount_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_CategoryCount_1',
+            layerName: 'layer_CategoryCount_1',
+            pane: 'pane_CategoryCount_1',
+            onEachFeature: pop_CategoryCount_1,
+            style: style_CategoryCount_1_0,
+        });
+        bounds_group.addLayer(layer_CategoryCount_1);
+        map.addLayer(layer_CategoryCount_1);
+        function pop_14072026gpkg_2(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['Meter'] !== null ? autolinker.link(String(feature.properties['Meter']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['REMARKS'] !== null ? autolinker.link(String(feature.properties['REMARKS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['latitude'] !== null ? autolinker.link(String(feature.properties['latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['longitude'] !== null ? autolinker.link(String(feature.properties['longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['data'] !== null ? autolinker.link(String(feature.properties['data']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['note'] !== null ? autolinker.link(String(feature.properties['note']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['VENDORNAME'] !== null ? autolinker.link(String(feature.properties['VENDORNAME']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['folders'] !== null ? autolinker.link(String(feature.properties['folders']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_14072026gpkg_2_0(feature) {
+            switch(String(feature.properties['note'])) {
+                case 'Dummy':
+                    return {
+                pane: 'pane_14072026gpkg_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,244,0,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'NOT REGISTERED':
+                    return {
+                pane: 'pane_14072026gpkg_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(227,26,28,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'UPDATED':
+                    return {
+                pane: 'pane_14072026gpkg_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(51,160,44,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_14072026gpkg_2');
+        map.getPane('pane_14072026gpkg_2').style.zIndex = 402;
+        map.getPane('pane_14072026gpkg_2').style['mix-blend-mode'] = 'normal';
+        var layer_14072026gpkg_2 = new L.geoJson(json_14072026gpkg_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_14072026gpkg_2',
+            layerName: 'layer_14072026gpkg_2',
+            pane: 'pane_14072026gpkg_2',
+            onEachFeature: pop_14072026gpkg_2,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_14072026gpkg_2_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_14072026gpkg_2);
+        map.addLayer(layer_14072026gpkg_2);
+        var overlaysTree = [
+            {label: 'توزيع 14-07-2026.gpkg<br /><table><tr><td style="text-align: center;"><img src="legend/14072026gpkg_2_Dummy0.png" /></td><td>Dummy</td></tr><tr><td style="text-align: center;"><img src="legend/14072026gpkg_2_NOTREGISTERED1.png" /></td><td>NOT REGISTERED</td></tr><tr><td style="text-align: center;"><img src="legend/14072026gpkg_2_UPDATED2.png" /></td><td>UPDATED</td></tr></table>', layer: layer_14072026gpkg_2},
+            {label: '<img src="legend/CategoryCount_1.png" /> CategoryCount', layer: layer_CategoryCount_1},
+            {label: "Google Satellite Hybrid", layer: layer_GoogleSatelliteHybrid_0, radioGroup: 'bm' },]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        map.addControl(new L.Control.Search({
+            layer: layer_14072026gpkg_2,
+            initial: false,
+            hideMarkerOnCollapse: true,
+            propertyName: 'Meter'}));
+        if (typeof url === 'undefined') {
+            document.getElementsByClassName('search-button')[0].className += ' fa fa-binoculars';
+        } else {
+            document.getElementsByClassName('search-button')[1].className += ' fa fa-binoculars';
+        }
+        var mapDiv = document.getElementById('map');
+        var row = document.createElement('div');
+        row.className="row";
+        row.id="all";
+        row.style.height = "100%";
+        var col1 = document.createElement('div');
+        col1.className="col9";
+        col1.id = "mapWindow";
+        col1.style.height = "99%";
+        col1.style.width = "80%";
+        col1.style.display = "inline-block";
+        var col2 = document.createElement('div');
+        col2.className="col3";
+        col2.id = "menu";
+        col2.style.display = "inline-block";
+        mapDiv.parentNode.insertBefore(row, mapDiv);
+        document.getElementById("all").appendChild(col1);
+        document.getElementById("all").appendChild(col2);
+        col1.appendChild(mapDiv)
+        var Filters = {"note": "str","folders": "str","name": "str"};
+        function filterFunc() {
+          map.eachLayer(function(lyr){
+          if ("options" in lyr && "dataVar" in lyr["options"]){
+            features = this[lyr["options"]["dataVar"]].features.slice(0);
+            try{
+              for (key in Filters){
+                keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+                if (Filters[key] == "str" || Filters[key] == "bool"){
+                  var selection = [];
+                  var options = document.getElementById("sel_" + keyS).options
+                  for (var i=0; i < options.length; i++) {
+                    if (options[i].selected) selection.push(options[i].value);
+                  }
+                    try{
+                      if (key in features[0].properties){
+                        for (i = features.length - 1;
+                          i >= 0; --i){
+                          if (selection.indexOf(
+                          features[i].properties[key])<0
+                          && selection.length>0) {
+                          features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                  }
+                }
+                if (Filters[key] == "int"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (parseInt(features[i].properties[key])
+                          < sliderVals[0]
+                          || parseInt(features[i].properties[key])
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "real"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (features[i].properties[key]
+                          < sliderVals[0]
+                          || features[i].properties[key]
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "date"
+                  || Filters[key] == "datetime"
+                  || Filters[key] == "time"){
+                  try{
+                    if (key in features[0].properties){
+                      HTMLkey = key.replace(/[&\\/\\#,+()$~%.'":*?<>{} ]/g, '');
+                      startdate = document.getElementById("dat_" +
+                        HTMLkey + "_date1").value.replace(" ", "T");
+                      enddate = document.getElementById("dat_" +
+                        HTMLkey + "_date2").value.replace(" ", "T");
+                      for (i = features.length - 1; i >= 0; --i){
+                        if (features[i].properties[key] < startdate
+                          || features[i].properties[key] > enddate){
+                          features.splice(i,1);
+                        }
+                      }
+                    }
+                  } catch(err){
+                  }
+                }
+              }
+            } catch(err){
+            }
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+          }
+          })
+        }
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_note = document.createElement('div');
+            div_note.id = "div_note";
+            div_note.className= "filterselect";
+            document.getElementById("menu").appendChild(div_note);
+            sel_note = document.createElement('select');
+            sel_note.multiple = true;
+            sel_note.size = 3;
+            sel_note.id = "sel_note";
+            var note_options_str = "<option value='' unselected></option>";
+            sel_note.onchange = function(){filterFunc()};
+            note_options_str  += '<option value="Dummy">Dummy</option>';
+            note_options_str  += '<option value="NOT REGISTERED">NOT REGISTERED</option>';
+            note_options_str  += '<option value="UPDATED">UPDATED</option>';
+            sel_note.innerHTML = note_options_str;
+            div_note.appendChild(sel_note);
+            var lab_note = document.createElement('div');
+            lab_note.innerHTML = 'note';
+            lab_note.className = 'filterlabel';
+            div_note.appendChild(lab_note);
+            var reset_note = document.createElement('div');
+            reset_note.innerHTML = 'clear filter';
+            reset_note.className = 'filterlabel';
+            reset_note.onclick = function() {
+                var options = document.getElementById("sel_note").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_note.appendChild(reset_note);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_folders = document.createElement('div');
+            div_folders.id = "div_folders";
+            div_folders.className= "filterselect";
+            document.getElementById("menu").appendChild(div_folders);
+            sel_folders = document.createElement('select');
+            sel_folders.multiple = true;
+            sel_folders.size = 10;
+            sel_folders.id = "sel_folders";
+            var folders_options_str = "<option value='' unselected></option>";
+            sel_folders.onchange = function(){filterFunc()};
+            folders_options_str  += '<option value="NULL">NULL</option>';
+            folders_options_str  += '<option value="Distribution Borderlines">Distribution Borderlines</option>';
+            folders_options_str  += '<option value="الحائط">الحائط</option>';
+            folders_options_str  += '<option value="السلف">السلف</option>';
+            folders_options_str  += '<option value="السمراء">السمراء</option>';
+            folders_options_str  += '<option value="الشملي">الشملي</option>';
+            folders_options_str  += '<option value="الشنان">الشنان</option>';
+            folders_options_str  += '<option value="الغزالة">الغزالة</option>';
+            folders_options_str  += '<option value="بقعاء">بقعاء</option>';
+            folders_options_str  += '<option value="عقدة">عقدة</option>';
+            folders_options_str  += '<option value="قرى حائل">قرى حائل</option>';
+            folders_options_str  += '<option value="قرى فرع حائل">قرى فرع حائل</option>';
+            folders_options_str  += '<option value="موقق">موقق</option>';
+            sel_folders.innerHTML = folders_options_str;
+            div_folders.appendChild(sel_folders);
+            var lab_folders = document.createElement('div');
+            lab_folders.innerHTML = 'folders';
+            lab_folders.className = 'filterlabel';
+            div_folders.appendChild(lab_folders);
+            var reset_folders = document.createElement('div');
+            reset_folders.innerHTML = 'clear filter';
+            reset_folders.className = 'filterlabel';
+            reset_folders.onclick = function() {
+                var options = document.getElementById("sel_folders").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_folders.appendChild(reset_folders);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_name = document.createElement('div');
+            div_name.id = "div_name";
+            div_name.className= "filterselect";
+            document.getElementById("menu").appendChild(div_name);
+            sel_name = document.createElement('select');
+            sel_name.multiple = true;
+            sel_name.size = 10;
+            sel_name.id = "sel_name";
+            var name_options_str = "<option value='' unselected></option>";
+            sel_name.onchange = function(){filterFunc()};
+            name_options_str  += '<option value="NULL">NULL</option>';
+            name_options_str  += '<option value="1 الشفاء">1 الشفاء</option>';
+            name_options_str  += '<option value="أجا">أجا</option>';
+            name_options_str  += '<option value="أرينبة المنطقة المرتفعة">أرينبة المنطقة المرتفعة</option>';
+            name_options_str  += '<option value="أرينبة المنطقة المنخفضة">أرينبة المنطقة المنخفضة</option>';
+            name_options_str  += '<option value="أشيقر (Ashigir)">أشيقر (Ashigir)</option>';
+            name_options_str  += '<option value="أم القلبان الجنوبي">أم القلبان الجنوبي</option>';
+            name_options_str  += '<option value="أم القلبان الشمالي الشرقي">أم القلبان الشمالي الشرقي</option>';
+            name_options_str  += '<option value="أم القلبان الشمالي الغربي">أم القلبان الشمالي الغربي</option>';
+            name_options_str  += '<option value="أم شعاري">أم شعاري</option>';
+            name_options_str  += '<option value="اسبطر">اسبطر</option>';
+            name_options_str  += '<option value="اسكان الشنان">اسكان الشنان</option>';
+            name_options_str  += '<option value="اسكان الوليد">اسكان الوليد</option>';
+            name_options_str  += '<option value="اسكان حائل">اسكان حائل</option>';
+            name_options_str  += '<option value="الأمل">الأمل</option>';
+            name_options_str  += '<option value="الأندلس">الأندلس</option>';
+            name_options_str  += '<option value="الاجفر-بئر مباشر">الاجفر-بئر مباشر</option>';
+            name_options_str  += '<option value="الاجفر1">الاجفر1</option>';
+            name_options_str  += '<option value="الاجفر2">الاجفر2</option>';
+            name_options_str  += '<option value="الاجفر3">الاجفر3</option>';
+            name_options_str  += '<option value="الازدهار - النموذجي - الورود">الازدهار - النموذجي - الورود</option>';
+            name_options_str  += '<option value="البادية">البادية</option>';
+            name_options_str  += '<option value="البركة1">البركة1</option>';
+            name_options_str  += '<option value="البويطن">البويطن</option>';
+            name_options_str  += '<option value="البياضي">البياضي</option>';
+            name_options_str  += '<option value="التربية">التربية</option>';
+            name_options_str  += '<option value="التليفزيون">التليفزيون</option>';
+            name_options_str  += '<option value="الجامعيين الجديد">الجامعيين الجديد</option>';
+            name_options_str  += '<option value="الجامعيين القديم">الجامعيين القديم</option>';
+            name_options_str  += '<option value="الجبرية">الجبرية</option>';
+            name_options_str  += '<option value="الجبل">الجبل</option>';
+            name_options_str  += '<option value="الجثياثة">الجثياثة</option>';
+            name_options_str  += '<option value="الجحفة1">الجحفة1</option>';
+            name_options_str  += '<option value="الجحفة2">الجحفة2</option>';
+            name_options_str  += '<option value="الجديدة">الجديدة</option>';
+            name_options_str  += '<option value="الجفالية">الجفالية</option>';
+            name_options_str  += '<option value="الجفر">الجفر</option>';
+            name_options_str  += '<option value="الجنفاء">الجنفاء</option>';
+            name_options_str  += '<option value="الحائط1">الحائط1</option>';
+            name_options_str  += '<option value="الحائط2">الحائط2</option>';
+            name_options_str  += '<option value="الحائط3">الحائط3</option>';
+            name_options_str  += '<option value="الحطي">الحطي</option>';
+            name_options_str  += '<option value="الحفن1">الحفن1</option>';
+            name_options_str  += '<option value="الحفن2">الحفن2</option>';
+            name_options_str  += '<option value="الحفير">الحفير</option>';
+            name_options_str  += '<option value="الحفيرة">الحفيرة</option>';
+            name_options_str  += '<option value="الحليفة العليا">الحليفة العليا</option>';
+            name_options_str  += '<option value="الحليفة المرتفعة">الحليفة المرتفعة</option>';
+            name_options_str  += '<option value="الحليفة المنخفضة">الحليفة المنخفضة</option>';
+            name_options_str  += '<option value="الحماد">الحماد</option>';
+            name_options_str  += '<option value="الخب + غرب المسلخ">الخب + غرب المسلخ</option>';
+            name_options_str  += '<option value="الخزامى">الخزامى</option>';
+            name_options_str  += '<option value="الخطة">الخطة</option>';
+            name_options_str  += '<option value="الخليج">الخليج</option>';
+            name_options_str  += '<option value="الخماشية">الخماشية</option>';
+            name_options_str  += '<option value="الخنقة">الخنقة</option>';
+            name_options_str  += '<option value="الخوير">الخوير</option>';
+            name_options_str  += '<option value="الدرب">الدرب</option>';
+            name_options_str  += '<option value="الدفاين">الدفاين</option>';
+            name_options_str  += '<option value="الرصف 1">الرصف 1</option>';
+            name_options_str  += '<option value="الرصف 2">الرصف 2</option>';
+            name_options_str  += '<option value="الروضة القديمة">الروضة القديمة</option>';
+            name_options_str  += '<option value="الروضة-المخطط">الروضة-المخطط</option>';
+            name_options_str  += '<option value="الروضة-المزارع">الروضة-المزارع</option>';
+            name_options_str  += '<option value="الزبارة">الزبارة</option>';
+            name_options_str  += '<option value="الزبيرة">الزبيرة</option>';
+            name_options_str  += '<option value="الزهرة + م الزهرة">الزهرة + م الزهرة</option>';
+            name_options_str  += '<option value="الساقية">الساقية</option>';
+            name_options_str  += '<option value="السبعان">السبعان</option>';
+            name_options_str  += '<option value="السعيرة">السعيرة</option>';
+            name_options_str  += '<option value="السفن">السفن</option>';
+            name_options_str  += '<option value="السلام">السلام</option>';
+            name_options_str  += '<option value="السلام والشارع العام جديد">السلام والشارع العام جديد</option>';
+            name_options_str  += '<option value="السليمي">السليمي</option>';
+            name_options_str  += '<option value="الشبيلي">الشبيلي</option>';
+            name_options_str  += '<option value="الشروق">الشروق</option>';
+            name_options_str  += '<option value="الشعلانية">الشعلانية</option>';
+            name_options_str  += '<option value="الشفاء 2">الشفاء 2</option>';
+            name_options_str  += '<option value="الشفاء 3">الشفاء 3</option>';
+            name_options_str  += '<option value="الشقيق">الشقيق</option>';
+            name_options_str  += '<option value="الشملى">الشملى</option>';
+            name_options_str  += '<option value="الشومية">الشومية</option>';
+            name_options_str  += '<option value="الشيحية">الشيحية</option>';
+            name_options_str  += '<option value="الصالحية">الصالحية</option>';
+            name_options_str  += '<option value="الصبيحية">الصبيحية</option>';
+            name_options_str  += '<option value="الصداعية وبدائع الصداعية">الصداعية وبدائع الصداعية</option>';
+            name_options_str  += '<option value="الصغوى">الصغوى</option>';
+            name_options_str  += '<option value="الصفراء">الصفراء</option>';
+            name_options_str  += '<option value="الصلعاء">الصلعاء</option>';
+            name_options_str  += '<option value="الصنيناء">الصنيناء</option>';
+            name_options_str  += '<option value="الصهوة">الصهوة</option>';
+            name_options_str  += '<option value="الضربة">الضربة</option>';
+            name_options_str  += '<option value="الطريفي">الطريفي</option>';
+            name_options_str  += '<option value="الطوال">الطوال</option>';
+            name_options_str  += '<option value="العزيزية">العزيزية</option>';
+            name_options_str  += '<option value="العزيزية - السلام">العزيزية - السلام</option>';
+            name_options_str  += '<option value="العش">العش</option>';
+            name_options_str  += '<option value="العظيم">العظيم</option>';
+            name_options_str  += '<option value="العليا1">العليا1</option>';
+            name_options_str  += '<option value="العليا2-الخليج">العليا2-الخليج</option>';
+            name_options_str  += '<option value="العوشزية المنطقة المرتفعة">العوشزية المنطقة المرتفعة</option>';
+            name_options_str  += '<option value="العوشزية المنطقة المنخفضة">العوشزية المنطقة المنخفضة</option>';
+            name_options_str  += '<option value="العويد (Alaweed)">العويد (Alaweed)</option>';
+            name_options_str  += '<option value="الفجر">الفجر</option>';
+            name_options_str  += '<option value="الفرحانية">الفرحانية</option>';
+            name_options_str  += '<option value="الفويلق2">الفويلق2</option>';
+            name_options_str  += '<option value="القاعد الشرقي">القاعد الشرقي</option>';
+            name_options_str  += '<option value="القاعد الغربي">القاعد الغربي</option>';
+            name_options_str  += '<option value="القاعية">القاعية</option>';
+            name_options_str  += '<option value="القدهي">القدهي</option>';
+            name_options_str  += '<option value="القعقاع">القعقاع</option>';
+            name_options_str  += '<option value="القليبة">القليبة</option>';
+            name_options_str  += '<option value="الكهفة">الكهفة</option>';
+            name_options_str  += '<option value="الكهيفية">الكهيفية</option>';
+            name_options_str  += '<option value="المبرز2">المبرز2</option>';
+            name_options_str  += '<option value="المثواة">المثواة</option>';
+            name_options_str  += '<option value="المرامشى الغربى والغرب">المرامشى الغربى والغرب</option>';
+            name_options_str  += '<option value="المروج">المروج</option>';
+            name_options_str  += '<option value="المزيريرات">المزيريرات</option>';
+            name_options_str  += '<option value="المزيريرات-المخطط الجنوبي">المزيريرات-المخطط الجنوبي</option>';
+            name_options_str  += '<option value="المزيريرات-المخطط الشمالي">المزيريرات-المخطط الشمالي</option>';
+            name_options_str  += '<option value="المستجدة">المستجدة</option>';
+            name_options_str  += '<option value="المشيطية">المشيطية</option>';
+            name_options_str  += '<option value="المصيف">المصيف</option>';
+            name_options_str  += '<option value="المضيح1">المضيح1</option>';
+            name_options_str  += '<option value="المضيح2">المضيح2</option>';
+            name_options_str  += '<option value="المطار">المطار</option>';
+            name_options_str  += '<option value="المطرفية">المطرفية</option>';
+            name_options_str  += '<option value="المعترضة">المعترضة</option>';
+            name_options_str  += '<option value="المعيزلة">المعيزلة</option>';
+            name_options_str  += '<option value="المعيقلات">المعيقلات</option>';
+            name_options_str  += '<option value="المكحول">المكحول</option>';
+            name_options_str  += '<option value="الملك عبدالله">الملك عبدالله</option>';
+            name_options_str  += '<option value="المملكة">المملكة</option>';
+            name_options_str  += '<option value="المنتزه الشرقي">المنتزه الشرقي</option>';
+            name_options_str  += '<option value="المنتزه الشمالي">المنتزه الشمالي</option>';
+            name_options_str  += '<option value="المنتزه الغربي">المنتزه الغربي</option>';
+            name_options_str  += '<option value="المندسة">المندسة</option>';
+            name_options_str  += '<option value="المهاش">المهاش</option>';
+            name_options_str  += '<option value="الناصرية">الناصرية</option>';
+            name_options_str  += '<option value="النفل">النفل</option>';
+            name_options_str  += '<option value="النهضة - الحمراء">النهضة - الحمراء</option>';
+            name_options_str  += '<option value="الهباج">الهباج</option>';
+            name_options_str  += '<option value="الهرير (alhurayr)">الهرير (alhurayr)</option>';
+            name_options_str  += '<option value="الهويدي1">الهويدي1</option>';
+            name_options_str  += '<option value="الهويدي2">الهويدي2</option>';
+            name_options_str  += '<option value="الوادي">الوادي</option>';
+            name_options_str  += '<option value="الودي">الودي</option>';
+            name_options_str  += '<option value="الودي 1">الودي 1</option>';
+            name_options_str  += '<option value="الودي 2">الودي 2</option>';
+            name_options_str  += '<option value="الورود">الورود</option>';
+            name_options_str  += '<option value="الوسعه1">الوسعه1</option>';
+            name_options_str  += '<option value="الوسعه2">الوسعه2</option>';
+            name_options_str  += '<option value="الوسيطاء">الوسيطاء</option>';
+            name_options_str  += '<option value="الوسيطاء المركز">الوسيطاء المركز</option>';
+            name_options_str  += '<option value="الوسيطاء حي الامير">الوسيطاء حي الامير</option>';
+            name_options_str  += '<option value="الوسيطاء حي الشايع">الوسيطاء حي الشايع</option>';
+            name_options_str  += '<option value="الياسمين">الياسمين</option>';
+            name_options_str  += '<option value="بئر بن منوة1">بئر بن منوة1</option>';
+            name_options_str  += '<option value="بدائع السبعان">بدائع السبعان</option>';
+            name_options_str  += '<option value="بقعاء">بقعاء</option>';
+            name_options_str  += '<option value="بقعاء الشرقية">بقعاء الشرقية</option>';
+            name_options_str  += '<option value="بيضاء نثيل6">بيضاء نثيل6</option>';
+            name_options_str  += '<option value="تربة">تربة</option>';
+            name_options_str  += '<option value="تربة الشيب">تربة الشيب</option>';
+            name_options_str  += '<option value="جبة">جبة</option>';
+            name_options_str  += '<option value="جبة-المخطط الجنوبي">جبة-المخطط الجنوبي</option>';
+            name_options_str  += '<option value="جبة-المخطط الشمالي">جبة-المخطط الشمالي</option>';
+            name_options_str  += '<option value="جنوب السويفله">جنوب السويفله</option>';
+            name_options_str  += '<option value="جنوب العزيزية">جنوب العزيزية</option>';
+            name_options_str  += '<option value="جنوب جبة">جنوب جبة</option>';
+            name_options_str  += '<option value="حدري البلاد">حدري البلاد</option>';
+            name_options_str  += '<option value="حفاير العهين">حفاير العهين</option>';
+            name_options_str  += '<option value="حي الدفاع المدني">حي الدفاع المدني</option>';
+            name_options_str  += '<option value="حي المنتزة">حي المنتزة</option>';
+            name_options_str  += '<option value="حي النقرة">حي النقرة</option>';
+            name_options_str  += '<option value="خبرا شمر">خبرا شمر</option>';
+            name_options_str  += '<option value="دحلة الجوازي">دحلة الجوازي</option>';
+            name_options_str  += '<option value="درة الشمال">درة الشمال</option>';
+            name_options_str  += '<option value="درة مشار">درة مشار</option>';
+            name_options_str  += '<option value="ديلهان">ديلهان</option>';
+            name_options_str  += '<option value="رجامة">رجامة</option>';
+            name_options_str  += '<option value="رديفة الاجفر">رديفة الاجفر</option>';
+            name_options_str  += '<option value="روض جبة">روض جبة</option>';
+            name_options_str  += '<option value="روضة التنهات">روضة التنهات</option>';
+            name_options_str  += '<option value="ريع البكر">ريع البكر</option>';
+            name_options_str  += '<option value="ريع المحمي">ريع المحمي</option>';
+            name_options_str  += '<option value="ريع تقريب">ريع تقريب</option>';
+            name_options_str  += '<option value="زريب التيم">زريب التيم</option>';
+            name_options_str  += '<option value="سبيعة">سبيعة</option>';
+            name_options_str  += '<option value="سعيدان">سعيدان</option>';
+            name_options_str  += '<option value="سميراء1">سميراء1</option>';
+            name_options_str  += '<option value="سميراء2">سميراء2</option>';
+            name_options_str  += '<option value="سميراء3">سميراء3</option>';
+            name_options_str  += '<option value="سميراء4">سميراء4</option>';
+            name_options_str  += '<option value="شراف">شراف</option>';
+            name_options_str  += '<option value="شرق السمراء">شرق السمراء</option>';
+            name_options_str  += '<option value="شرق المجمع">شرق المجمع</option>';
+            name_options_str  += '<option value="شعيبة المياه">شعيبة المياه</option>';
+            name_options_str  += '<option value="شمال السويفله">شمال السويفله</option>';
+            name_options_str  += '<option value="صبابة">صبابة</option>';
+            name_options_str  += '<option value="صلاح الدين الشرقي">صلاح الدين الشرقي</option>';
+            name_options_str  += '<option value="صلاح الدين الغربي">صلاح الدين الغربي</option>';
+            name_options_str  += '<option value="ضبيعة">ضبيعة</option>';
+            name_options_str  += '<option value="طابة1">طابة1</option>';
+            name_options_str  += '<option value="طابة2">طابة2</option>';
+            name_options_str  += '<option value="عثمر">عثمر</option>';
+            name_options_str  += '<option value="عثمر حارة الخمسان">عثمر حارة الخمسان</option>';
+            name_options_str  += '<option value="عثمر مخطط 441">عثمر مخطط 441</option>';
+            name_options_str  += '<option value="عقده">عقده</option>';
+            name_options_str  += '<option value="عقلة اللبن">عقلة اللبن</option>';
+            name_options_str  += '<option value="عقلة بن جبرين">عقلة بن جبرين</option>';
+            name_options_str  += '<option value="عقلة بن داني1">عقلة بن داني1</option>';
+            name_options_str  += '<option value="عقلة بن داني2">عقلة بن داني2</option>';
+            name_options_str  += '<option value="عقلة بن طوالة1">عقلة بن طوالة1</option>';
+            name_options_str  += '<option value="عقلة بن طوالة2">عقلة بن طوالة2</option>';
+            name_options_str  += '<option value="عمار">عمار</option>';
+            name_options_str  += '<option value="عماير بن صنعاء الجنوبية5">عماير بن صنعاء الجنوبية5</option>';
+            name_options_str  += '<option value="عماير بن صنعاء الشرقية7">عماير بن صنعاء الشرقية7</option>';
+            name_options_str  += '<option value="عماير بن صنعاء الشمالية8">عماير بن صنعاء الشمالية8</option>';
+            name_options_str  += '<option value="عماير بن صنعاء الغربية4">عماير بن صنعاء الغربية4</option>';
+            name_options_str  += '<option value="غرب السمراء">غرب السمراء</option>';
+            name_options_str  += '<option value="غزلانة">غزلانة</option>';
+            name_options_str  += '<option value="غمرة">غمرة</option>';
+            name_options_str  += '<option value="فيد">فيد</option>';
+            name_options_str  += '<option value="فيضة بن سويلم">فيضة بن سويلم</option>';
+            name_options_str  += '<option value="قصر العشروات 1">قصر العشروات 1</option>';
+            name_options_str  += '<option value="قصر العشروات 2">قصر العشروات 2</option>';
+            name_options_str  += '<option value="قصير بن متروك">قصير بن متروك</option>';
+            name_options_str  += '<option value="قصيرغضور">قصيرغضور</option>';
+            name_options_str  += '<option value="قفار الشرقي">قفار الشرقي</option>';
+            name_options_str  += '<option value="قفار الغربي">قفار الغربي</option>';
+            name_options_str  += '<option value="قفار القديم">قفار القديم</option>';
+            name_options_str  += '<option value="قناء">قناء</option>';
+            name_options_str  += '<option value="كمب الثنيان">كمب الثنيان</option>';
+            name_options_str  += '<option value="م النفل">م النفل</option>';
+            name_options_str  += '<option value="محير ذويرة">محير ذويرة</option>';
+            name_options_str  += '<option value="مدينة الغزالة">مدينة الغزالة</option>';
+            name_options_str  += '<option value="مرغان">مرغان</option>';
+            name_options_str  += '<option value="مرفية">مرفية</option>';
+            name_options_str  += '<option value="مريفق">مريفق</option>';
+            name_options_str  += '<option value="مشرفة3">مشرفة3</option>';
+            name_options_str  += '<option value="ملحق أجا">ملحق أجا</option>';
+            name_options_str  += '<option value="موقق المخطط">موقق المخطط</option>';
+            name_options_str  += '<option value="وتدة">وتدة</option>';
+            name_options_str  += '<option value="وسيطاء دليم">وسيطاء دليم</option>';
+            sel_name.innerHTML = name_options_str;
+            div_name.appendChild(sel_name);
+            var lab_name = document.createElement('div');
+            lab_name.innerHTML = 'name';
+            lab_name.className = 'filterlabel';
+            div_name.appendChild(lab_name);
+            var reset_name = document.createElement('div');
+            reset_name.innerHTML = 'clear filter';
+            reset_name.className = 'filterlabel';
+            reset_name.onclick = function() {
+                var options = document.getElementById("sel_name").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_name.appendChild(reset_name);
+        </script>        
+    </body>
+</html>
